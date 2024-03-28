@@ -25,8 +25,7 @@ exports.AddnewCategory = async (req, res) => {
         })
         await category.save();
         res.send(category)
-    }
-    
+    } 
 }
 
 exports.UpdateCategorybyId = async (req, res) => {
@@ -44,9 +43,6 @@ exports.UpdateCategorybyId = async (req, res) => {
           res.status(404).send("Category not found");
       }
     }
-
-
-    
 }
 
 exports.DeleteCategorybyId = async (req, res) => {
