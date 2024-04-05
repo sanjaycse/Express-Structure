@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const Joi = require('joi');
+const {categorySchema} = require('../models/categoryModel')
 
 
 
@@ -15,6 +16,10 @@ const studentSchema = new mongoose.Schema({
         type: Boolean,
         required: true,
         default:false
+    },
+    category:{
+        type: categorySchema,
+        required: true
     }
 })
 
@@ -26,6 +31,7 @@ function validateData(Student){
     const schema = Joi.object({
         name: Joi.string().min(3).required(),
         phone: Joi.string().min(3).required(),
+        // category: Joi.string.min(3).required(),
         isEnrolled: Joi.boolean()
     });
 

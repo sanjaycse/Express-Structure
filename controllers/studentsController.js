@@ -1,6 +1,7 @@
 const express = require('express');
 var router = express.Router();
 const {Student , validateData} = require('../models/studentsModel');
+const {Category} = require('../models/categoryModel')
 
 exports.GetallStudents = async (req,res)=>{
     const students = await Student.find()
@@ -15,18 +16,26 @@ exports.GetStudentsbyId = async (req,res)=>{
 }
 
 exports.AddnewStudent = async (req, res) => {
-    const {error, value} = validateData(req.body)
-    if(error){
-        res.status(404).send(error.details[0].message)
-    }else{
+    // const {error, value} = validateData(req.body)
+    const category = await Category.findById(req.body.categoryId)
+    if(!category) return res.status(400).send('Invalid ID')
+
+
+    // if(error){
+    //     res.status(404).send(error.details[0].message)
+    // }else{
         const student = Student({
             name: req.body.name,
             phone: req.body.phone,
-            isEnrolled: req.body.isEnrolled
+            isEnrolled: req.body.isEnrolled,
+            category:{
+                _id: category._id,
+                name: category.name
+            }
         })
         await student.save();
         res.send(student)
-    }
+    // }
     
 }
 
@@ -35,7 +44,17 @@ exports.UpdateStudentbyId = async (req, res) => {
     const isEnrolled = req.body.isEnrolled;
     const phone = req.body.phone;
 
-    const student = await Student.findByIdAndUpdate(req.params.id,{ name: studentName, isEnrolled: isEnrolled, phone: phone }, {new:true})
+    const category = await Category.findById(req.body.categoryId)
+    if(!category) return res.status(400).send('Invalid ID')
+
+    const student = await Student.findByIdAndUpdate(req.params.id,{ 
+        name: studentName, 
+        category:{
+            _id: category._id,
+            name: category.name
+        }, 
+        isEnrolled: isEnrolled, 
+        phone: phone }, {new:true})
     // If the student with the given ID is found
     if (student) {
         res.send(student);
