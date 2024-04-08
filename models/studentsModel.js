@@ -20,6 +20,13 @@ const studentSchema = new mongoose.Schema({
     category:{
         type: categorySchema,
         required: true
+    },
+    username:String,
+    password:{
+        type: String,
+        required: true,
+        minlength:3
+        // maxlength: 100
     }
 })
 
@@ -32,6 +39,7 @@ function validateData(Student){
         name: Joi.string().min(3).required(),
         phone: Joi.string().min(3).required(),
         // category: Joi.string.min(3).required(),
+        password: Joi.string().min(3).required(),
         isEnrolled: Joi.boolean()
     });
 
