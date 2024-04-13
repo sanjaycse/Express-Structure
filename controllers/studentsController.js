@@ -1,5 +1,4 @@
 const express = require('express');
-var router = express.Router();
 const {Student , validateData} = require('../models/studentsModel');
 const {Category} = require('../models/categoryModel')
 const { body, validationResult } = require('express-validator');
@@ -8,103 +7,159 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'sanjayisgoodboy';
 
 exports.GetallStudents = async (req,res)=>{
-    const students = await Student.find()
-    res.send(students)
+    try{
+        const students = await Student.find()
+        res.send(students)
+    }catch(error){
+        res.status(404).send(error)
+    }
 }
 
 
 exports.GetStudentsbyId = async (req,res)=>{
-    const student = await Student.findById(req.params.id)
-    if(!student) return res.status(404).send('This Student not found in our record')
-    res.send(student)
+    try{
+        const student = await Student.findById(req.params.id)
+        if(!student) return res.status(404).send('This Student not found in our record')
+        res.send(student)
+    }catch(error){
+        res.status(404).send(error)
+    }
 }
 
 exports.AddnewStudent = async (req, res) => {
-    // const {error, value} = validateData(req.body)
-    const category = await Category.findById(req.body.categoryId)
-    if(!category) return res.status(400).send('Invalid ID')
+    try {
+        // const {error, value} = validateData(req.body)
+        const username = req.body.username;
+        const phone = req.body.phone;
+        const user = await Student.findOne({
+            $or: [
+            { username: username },
+            { phone: phone }
+            ]
+        });
+        const category = await Category.findById(req.body.categoryId)
+        if(!category) return res.status(400).send('Invalid ID')
 
 
-    // if(error){
-    //     res.status(404).send(error.details[0].message)
-    // }else{
-        const salt = await bcrypt.genSalt(10);
-        const secPass = await bcrypt.hash(req.body.password, salt);
-        console.log(secPass)
-        const student = await Student({
-            name: req.body.name,
-            phone: req.body.phone,
-            isEnrolled: req.body.isEnrolled,
-            category:{
-                _id: category._id,
-                name: category.name
-            },
-            username: req.body.username,
-            password:secPass
-        })
-        await student.save();
-        const payload = {
-            user:{
-                id: student.id
+        if(user){
+            res.status(404).send("This username or phone is already registered")
+        }else{
+            const salt = await bcrypt.genSalt(10);
+            const secPass = await bcrypt.hash(req.body.password, salt);
+            const student = await Student({
+                name: req.body.name,
+                phone: req.body.phone,
+                isEnrolled: req.body.isEnrolled,
+                category:{
+                    _id: category._id,
+                    name: category.name
+                },
+                username: req.body.username,
+                password:secPass
+            })
+            await student.save();
+            // Exclude password from the student object
+            student.password = undefined;
+            const payload = {
+                user:{
+                    id: student.id
+                }
             }
+            // const authToken = jwt.sign(payload, JWT_SECRET);
+            res.send({student});
+            // res.send(student)
         }
-        const authToken = jwt.sign(payload, JWT_SECRET);
-        res.send({authToken});
-        // res.send(student)
-    // }
+    } catch (error) {
+        res.status(404).send(error.message);
+    }
     
 }
 
 exports.UpdateStudentbyId = async (req, res) => {
-    const studentName = req.body.name;
-    const isEnrolled = req.body.isEnrolled;
-    const phone = req.body.phone;
-    const username = req.body.username;
+    try {
+        const updateFields = {};
+        
+        // Check and add name if present in request body
+        if (req.body.name) {
+            updateFields.name = req.body.name;
+        }
 
-    const category = await Category.findById(req.body.categoryId)
-    if(!category) return res.status(400).send('Invalid ID')
+        // Check and add isEnrolled if present in request body
+        if (req.body.isEnrolled !== undefined) {
+            updateFields.isEnrolled = req.body.isEnrolled;
+        }
 
-    const student = await Student.findByIdAndUpdate(req.params.id,{ 
-        name: studentName, 
-        category:{
-            _id: category._id,
-            name: category.name
-        }, 
-        isEnrolled: isEnrolled, 
-        phone: phone }, {new:true})
-    // If the student with the given ID is found
-    if (student) {
-        res.send(student);
-    } else {
-        // If the Student with the given ID is not found, send a 404 error
-        res.status(404).send("Student not found");
-    }  
+        // Check and add phone if present in request body
+        if (req.body.phone) {
+            updateFields.phone = req.body.phone;
+        }
+
+        // Check and add password if present in request body
+        if (req.body.password) {
+            const salt = await bcrypt.genSalt(10);
+            const secPass = await bcrypt.hash(req.body.password, salt);
+            updateFields.password = secPass;
+        }
+
+        // Check and add category if present in request body
+        if (req.body.categoryId) {
+            const category = await Category.findById(req.body.categoryId);
+            if (!category) return res.status(400).send('Please Enter Invalid Category ID');
+            updateFields.category = {
+                _id: category._id,
+                name: category.name
+            };
+        }
+
+        if (req.body.username) {
+            res.send("We cannot change the Username once student is added.");
+        }else{
+            const student = await Student.findByIdAndUpdate(req.params.id, updateFields, { new: true });
+            if (student) {
+                res.send(student);
+            }
+        }
+
+        
+    } catch (error) {
+        res.status(404).send(error.message);
+    }
 }
 
 
-exports.DeleteStudentbyId = async (req, res) => {
-    // Find the Student with the given ID
-    const deletedStudent = await Student.findByIdAndDelete(req.params.id);
 
-    if (deletedStudent) {
-        // If the Student with the given ID is found and deleted, send back a success message
-        res.send("All Student deleted successfully");
-    } else {
-        // If the Student with the given ID is not found, send a 404 error
-        res.status(404).send("Student not found");
+
+exports.DeleteStudentbyId = async (req, res) => {
+    try{
+        // Find the Student with the given ID
+        const deletedStudent = await Student.findByIdAndDelete(req.params.id);
+
+        if (deletedStudent) {
+            // If the Student with the given ID is found and deleted, send back a success message
+            res.send("This Student deleted successfully");
+        } else {
+            // If the Student with the given ID is not found, send a 404 error
+            res.status(404).send("Student not found");
+        }
+    }catch(error){
+        res.status(404).send(error.message);
     }
 }
 
 exports.DeleteAllStudents = async (req, res) => {
-    // Delete all Students
-    const deletedStudent = await Student.deleteMany();
+    try{
+        // Delete all Students
+        const deletedStudent = await Student.deleteMany();
 
-    if (deletedStudent) {
-        // If the Students deleted, send back a success message
-        res.send("Students deleted successfully");
-    } else {
-        // If the Student is not found, send a 404 error
-        res.status(404).send("Student not found");
+        if (deletedStudent) {
+            // If the Students deleted, send back a success message
+            res.send("Students deleted successfully");
+        } else {
+            // If the Student is not found, send a 404 error
+            res.status(404).send("Student not found");
+        }
+    }catch(error){
+        res.status(404).send(error.message)
     } 
 }
 
@@ -152,6 +207,12 @@ exports.LoginStudent = async (req, res) => {
         };
         res.send({user:userWithNecessaryData, authToken});
     } catch (error) {
-        console.error(error.message);
+        console.status(404).error(error.message);
     }
 }
+
+
+// exports.GetDashboard = async (req, res) => {
+//     // res.render('index', { title: 'Home' });
+//     res.send("sanjay");
+// }

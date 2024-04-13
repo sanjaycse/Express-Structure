@@ -3,6 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+const cors = require('cors');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -13,6 +14,7 @@ const mongoose = require("mongoose")
 mongoose.connect('mongodb://localhost:27017/learningDB').then(()=> console.log('DB connected')).catch(err=> console.log('Error while connecting DB', err))
 
 var app = express();
+app.use(cors());
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
