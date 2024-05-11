@@ -17,10 +17,10 @@ const studentSchema = new mongoose.Schema({
         required: true,
         default:false
     },
-    category:{
+    category:[{
         type: categorySchema,
         required: true
-    },
+    }],
     username:String,
     password:{
         type: String,
@@ -38,7 +38,7 @@ function validateData(Student){
     const schema = Joi.object({
         name: Joi.string().min(3).required(),
         phone: Joi.string().min(3).required(),
-        // category: Joi.string.min(3).required(),
+        categories: Joi.array().items(Joi.object()),
         password: Joi.string().min(3).required(),
         isEnrolled: Joi.boolean()
     });

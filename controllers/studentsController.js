@@ -20,6 +20,7 @@ exports.GetStudentsbyId = async (req,res)=>{
     try{
         const student = await Student.findById(req.params.id)
         if(!student) return res.status(404).send('This Student not found in our record')
+        student.password = undefined;
         res.send(student)
     }catch(error){
         res.status(404).send(error)
@@ -37,8 +38,13 @@ exports.AddnewStudent = async (req, res) => {
             { phone: phone }
             ]
         });
-        const category = await Category.findById(req.body.categoryId)
-        if(!category) return res.status(400).send('Invalid ID')
+        const categoryIds = req.body.categoryId;
+        const category = await Category.find({ _id: { $in: categoryIds } });
+        // if(!category) return res.status(400).send('Invalid ID')
+
+        if (category.length !== categoryIds.length) {
+            return res.status(400).send('One or more category IDs are invalid');
+        }
 
 
         if(user){
@@ -50,10 +56,10 @@ exports.AddnewStudent = async (req, res) => {
                 name: req.body.name,
                 phone: req.body.phone,
                 isEnrolled: req.body.isEnrolled,
-                category:{
-                    _id: category._id,
-                    name: category.name
-                },
+                category: category.map(cat => ({
+                    _id: cat._id,
+                    name: cat.name
+                })),
                 username: req.body.username,
                 password:secPass
             })
@@ -66,8 +72,18 @@ exports.AddnewStudent = async (req, res) => {
                 }
             }
             // const authToken = jwt.sign(payload, JWT_SECRET);
-            res.send({student});
+            // res.send({student});
             // res.send(student)
+            res.send({
+                student: {
+                    _id: student._id,
+                    name: student.name,
+                    phone: student.phone,
+                    isEnrolled: student.isEnrolled,
+                    category: student.category,
+                    username: student.username
+                }
+            });
         }
     } catch (error) {
         res.status(404).send(error.message);
@@ -103,24 +119,24 @@ exports.UpdateStudentbyId = async (req, res) => {
 
         // Check and add category if present in request body
         if (req.body.categoryId) {
-            const category = await Category.findById(req.body.categoryId);
-            if (!category) return res.status(400).send('Please Enter Invalid Category ID');
-            updateFields.category = {
-                _id: category._id,
-                name: category.name
-            };
+            const categoryIds = req.body.categoryId;
+            const category = await Category.find({ _id: { $in: categoryIds } });
+            if (!category) return res.status(400).send('Please Enter Valid Category ID');
+
+            updateFields.category = category.map(cat => ({
+                _id: cat._id,
+                name: cat.name
+            }));
         }
 
         if (req.body.username) {
             res.send("We cannot change the Username once student is added.");
-        }else{
+        } else {
             const student = await Student.findByIdAndUpdate(req.params.id, updateFields, { new: true });
             if (student) {
                 res.send(student);
             }
-        }
-
-        
+        }   
     } catch (error) {
         res.status(404).send(error.message);
     }
@@ -129,14 +145,16 @@ exports.UpdateStudentbyId = async (req, res) => {
 
 
 
+
 exports.DeleteStudentbyId = async (req, res) => {
     try{
         // Find the Student with the given ID
         const deletedStudent = await Student.findByIdAndDelete(req.params.id);
+        const students = await Student.find()
 
         if (deletedStudent) {
             // If the Student with the given ID is found and deleted, send back a success message
-            res.send("This Student deleted successfully");
+            res.send(students);
         } else {
             // If the Student with the given ID is not found, send a 404 error
             res.status(404).send("Student not found");
